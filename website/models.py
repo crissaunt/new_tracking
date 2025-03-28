@@ -7,7 +7,7 @@ class User(db.Model, UserMixin):
     email = db.Column(db.String(255), unique=True)
     username = db.Column(db.String(255), unique=True)
     password = db.Column(db.String(255))
-    location = db.relationship('Location', backref='user', lazy=True, cascade='all, delete')
+    locations = db.relationship('Location', backref='user', lazy=True, cascade='all, delete')
     
 class Location(db.Model):
     id = db.Column(db.Integer, primary_key=True)

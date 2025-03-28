@@ -14,8 +14,9 @@ views = Blueprint('views', __name__)
 def home():
     if not current_user.is_authenticated:
         return redirect(url_for('auth.login'))
+    all_users = User.query.options(db.joinedload(User.locations)).all()
     
-    return render_template('home.html')
+    return render_template('home.html', user= current_user, all_users=all_users)
 
 @socketio.on('location')
 def handle_location(data):

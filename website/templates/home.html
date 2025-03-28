@@ -20,24 +20,28 @@
                 <th>email</th>
                 <th>username</th>
                 <th>location</th>
-            
-            {% if not user %}
+            </tr>
+            {% if not all_users %}
                 <tr>
-                    <td colspan="4">No user found</td>
+                    <td colspan="4">No users found</td>
                 </tr>
             {% else %}    
-                {% for user in user.user %}   
+                {% for user in all_users %}
                 <tr>
-                    <td>{{user.id}}</td>
-                    <td>{{user.email}}</td>
-                    <td>{{user.username}}</td>
-                    <td>{{user.location}}</td>
+                    <td>{{ user.id }}</td>
+                    <td>{{ user.email }}</td>
+                    <td>{{ user.username }}</td>
+                    <td>
+                        {% if user.location %}
+                            {{ user.location[-1].latitude|round(4) }}, 
+                            {{ user.location[-1].longitude|round(4) }}
+                        {% else %}
+                            No location data
+                        {% endif %}
+                    </td>
                 </tr> 
                 {% endfor %}
             {% endif %}
-            
-
-            </tr>
         </table>
     </div>
 </div>
