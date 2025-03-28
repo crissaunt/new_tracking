@@ -1,7 +1,7 @@
-from website import create_app
+from website import create_app, socketio
 
 app = create_app()
 print(app)
 
 if __name__ == "__main__":
-    app.run(debug=True, port=1234)
+     socketio.run(app, host="0.0.0.0", port=8080, debug=True)  # Disable debug mode
