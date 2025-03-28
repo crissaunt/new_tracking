@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- In your <head> -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <title>{% block title %}{% endblock %}</title>
+    <style>
+
+    </style>
+</head>
+<body>
+
+    {% if current_user.is_authenticated %}
+        <a href="/">Home</a>
+        <a href="/logout">Logout</a>
+    {% else %}
+        <a href="login">Login</a>
+        <a href="register">register</a>
+    {% endif %}    
+
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                {% if category == 'error' %}
+                    <p style="color:red">{{ message}}</p>
+                {% elif category == 'success' %}
+                    <p style="color:green">{{ message}}</p>            
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+
+    {% block content %}{% endblock %}
+   
+    
+</body>
+</html>

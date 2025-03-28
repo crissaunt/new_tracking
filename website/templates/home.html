@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+<div style="display: flex;">
+    <div id="map" style="height: 500px; width: 70%; margin-top: 10px;"></div>
+    <div id="user-list" style="width: 30%; padding: 20px;">
+        <h3>Connected Users</h3>
+        <ul id="users" style="list-style: none; padding: 0;"></ul>
+    </div>
+</div>
+
+<style>
+    #user-list {
+        border-left: 1px solid #ccc;
+        margin-left: 20px;
+    }
+    .user-item {
+        margin: 10px 0;
+        padding: 10px;
+        background: #f5f5f5;
+        border-radius: 5px;
+    }
+    .pulse {
+        background: #3388ff;
+        border-radius: 50%;
+        height: 14px;
+        width: 14px;
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        margin: -7px 0 0 -7px;
+        animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(51, 136, 255, 0.7); }
+        70% { box-shadow: 0 0 0 12px rgba(51, 136, 255, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(51, 136, 255, 0); }
+    }
+    .geolocation-error {
+        padding: 15px;
+        background: #ffebee;
+        color: #b71c1c;
+        border: 1px solid #ffcdd2;
+        margin: 10px;
+        border-radius: 4px;
+    }
+</style>
+
+<script>
+    // Map initialization
+    const map = L.map('map').setView([0, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // Socket.IO connection
+    const socket = io('http://localhost:8080', {
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 3000,
+        withCredentials: true
+    });
+
+    // Tracking variables
+    let userMarkers = {};
+    let myMarker = null;
+    let pathLine = null;
+    let watchId = null;
+    const pathCoordinates = [];
+
+    function updateUserList(users) {
+        const list = document.getElementById('users');
+        list.innerHTML = '';
+        
+        Object.entries(users).forEach(([userId, data]) => {
+            const li = document.createElement('li');
+            li.className = 'user-item';
+            li.innerHTML = `
+                <strong>${data.username || 'Anonymous'}</strong><br>
+                Last update: ${new Date(data.timestamp).toLocaleTimeString()}
+            `;
+            list.appendChild(li);
+        });
+    }
+
+    function updateLocation(position) {
+        if (!position?.coords) {
+            console.error('Invalid geolocation data');
+            return;
+        }
+
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        const timestamp = Date.now();
+
+        // Update my marker
+        if (!myMarker) {
+            myMarker = L.marker([lat, lon], {
+                icon: L.divIcon({
+                    className: 'my-marker',
+                    html: '<div class="pulse"></div>'
+                })
+            }).addTo(map)
+            .bindPopup("Your Position")
+            .openPopup();
+            map.setView([lat, lon], 16);
+        } else {
+            myMarker.setLatLng([lat, lon]);
+        }
+
+        // Update path
+        pathCoordinates.push([lat, lon]);
+        if (pathCoordinates.length > 100) pathCoordinates.shift();
+
+        if (!pathLine) {
+            pathLine = L.polyline(pathCoordinates, {
+                color: "#3388ff",
+                weight: 4
+            }).addTo(map);
+        } else {
+            pathLine.setLatLngs(pathCoordinates);
+        }
+
+        // Emit location to server
+        socket.emit('location', {
+            lat: lat,
+            lon: lon,
+            timestamp: timestamp
+        });
+    }
+
+    // Socket event handlers
+    socket.on('update', (data) => {
+        if (data.user_id === socket.id) return;
+
+        if (!userMarkers[data.user_id]) {
+            userMarkers[data.user_id] = L.marker([data.lat, data.lon], {
+                icon: L.icon({
+                    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41]
+                })
+            })
+            .bindPopup(`User: ${data.username || 'Anonymous'}`)
+            .addTo(map);
+        } else {
+            userMarkers[data.user_id]
+                .setLatLng([data.lat, data.lon])
+                .setPopupContent(`User: ${data.username || 'Anonymous'}`);
+        }
+    });
+
+    socket.on('connected_users', (users) => {
+        updateUserList(users);
+        Object.entries(users).forEach(([userId, data]) => {
+            if (userId !== socket.id && !userMarkers[userId]) {
+                userMarkers[userId] = L.marker([data.lat, data.lon]).addTo(map);
+            }
+        });
+    });
+
+    socket.on('user_disconnected', (userId) => {
+        if (userMarkers[userId]) {
+            map.removeLayer(userMarkers[userId]);
+            delete userMarkers[userId];
+        }
+    });
+
+    function handleLocationErrors(error) {
+        console.error("Geolocation error:", error);
+        const status = document.createElement('div');
+        status.className = 'geolocation-error';
+        status.innerHTML = `
+            ❌ Error: ${error.message}<br>
+            <button onclick="initGeolocation()">Retry</button>
+        `;
+        document.body.prepend(status);
+    }
+
+    function initGeolocation() {
+        if (navigator.geolocation) {
+            watchId = navigator.geolocation.watchPosition(
+                updateLocation,
+                handleLocationErrors,
+                {
+                    enableHighAccuracy: true,
+                    maximumAge: 3000,
+                    timeout: 5000
+                }
+            );
+        } else {
+            alert("Geolocation is not supported by your browser");
+        }
+    }
+
+    // Initialize tracking
+    initGeolocation();
+
+    // Cleanup
+    window.addEventListener('beforeunload', () => {
+        if (watchId) navigator.geolocation.clearWatch(watchId);
+        socket.disconnect();
+    });
+</script>
+{% endblock %}
