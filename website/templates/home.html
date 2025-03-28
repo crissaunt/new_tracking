@@ -13,6 +13,33 @@
         <h3>Connected Users</h3>
         <ul id="users" style="list-style: none; padding: 0;"></ul>
     </div>
+    <div>
+        <table>
+            <tr>
+                <th>id</th>
+                <th>email</th>
+                <th>username</th>
+                <th>location</th>
+            
+            {% if not user %}
+                <tr>
+                    <td colspan="4">No user found</td>
+                </tr>
+            {% else %}    
+                {% for user in user.user %}   
+                <tr>
+                    <td>{{user.id}}</td>
+                    <td>{{user.email}}</td>
+                    <td>{{user.username}}</td>
+                    <td>{{user.location}}</td>
+                </tr> 
+                {% endfor %}
+            {% endif %}
+            
+
+            </tr>
+        </table>
+    </div>
 </div>
 
 <style>
