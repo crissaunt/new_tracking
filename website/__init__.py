@@ -6,22 +6,18 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from os import path
 
+socketio = SocketIO()
 connected_users = {}
-app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
-
-CORS(app, resources={r"/*": {"origins": "*"}})
 
 db = SQLAlchemy()
 DB_NAME = "database.db"
 
 def create_app():
-    
+    app = Flask(__name__)
     app.config["SECRET_KEY"] =  os.environ.get('SECRET_KEY', 'fallback_secret_key')
     app.config["SQLALCHEMY_DATABASE_URI"] = f'sqlite:///{DB_NAME}'
     db.init_app(app)
-    socketio = SocketIO(app, cors_allowed_origins="*")
-
+    
     CORS(app, resources={r"/*": {"origins": "*"}})
     
     socketio.init_app(app, cors_allowed_origins="*")
